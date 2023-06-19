@@ -1,0 +1,87 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" DefaultTargets="Build">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{aaf4b8d4-02e8-4a68-9713-535d642bd22f}</ProjectGuid>
+    <ProjectHome />
+    <StartupFile>app.py</StartupFile>
+    <SearchPath />
+    <WorkingDirectory>.</WorkingDirectory>
+    <OutputPath>.</OutputPath>
+    <ProjectTypeGuids>{888888a0-9f3d-457c-b088-3a5042f75d52}</ProjectTypeGuids>
+    <LaunchProvider>Standard Python launcher</LaunchProvider>
+    <InterpreterId />
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'" />
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'" />
+  <PropertyGroup>
+    <VisualStudioVersion Condition=" '$(VisualStudioVersion)' == '' ">10.0</VisualStudioVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="NewsServiceCommon.py" />
+    <Compile Include="news_cron.py" />
+    <Compile Include="NewsService.py" />
+    <Compile Include="news_webscripting.py" />
+    <Compile Include="reditt.py" />
+    <Compile Include="app.py" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="ConsoleApplication2\x64\Debug\ConsoleApplication2.vcxproj.FileListAbsolute.txt" />
+    <Content Include="ConsoleApplication3\x64\Debug\ConsoleApplication3.vcxproj.FileListAbsolute.txt" />
+    <Content Include="CudaRuntime10\x64\Debug\CudaRuntime10.vcxproj.FileListAbsolute.txt" />
+    <Content Include="CudaRuntime11\x64\Debug\CudaRuntime11.vcxproj.FileListAbsolute.txt" />
+    <Content Include="CudaRuntime12\x64\Debug\CudaRuntime12.vcxproj.FileListAbsolute.txt" />
+    <Content Include="CudaRuntime4\CudaRuntime4\x64\Debug\CodeAnalysisResultManifest.txt" />
+    <Content Include="CudaRuntime4\CudaRuntime4\x64\Debug\CudaRuntime4.vcxproj.FileListAbsolute.txt" />
+    <Content Include="CudaRuntime5\CudaRuntime5\x64\Debug\CudaRuntime5.vcxproj.FileListAbsolute.txt" />
+    <Content Include="CudaRuntime6\CudaRuntime6\x64\Debug\CudaRuntime6.vcxproj.FileListAbsolute.txt" />
+    <Content Include="CudaRuntime7\CudaRuntime7\x64\Debug\CudaRuntime7.vcxproj.FileListAbsolute.txt" />
+    <Content Include="CudaRuntime8\CudaRuntime8\x64\Debug\CodeAnalysisResultManifest.txt" />
+    <Content Include="CudaRuntime8\CudaRuntime8\x64\Debug\CudaRuntime8.vcxproj.FileListAbsolute.txt" />
+    <Content Include="CudaRuntime9\CudaRuntime9\x64\Debug\CodeAnalysisResultManifest.txt" />
+    <Content Include="CudaRuntime9\CudaRuntime9\x64\Debug\CudaRuntime9.vcxproj.FileListAbsolute.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="ConsoleApplication2\" />
+    <Folder Include="ConsoleApplication2\x64\" />
+    <Folder Include="ConsoleApplication2\x64\Debug" />
+    <Folder Include="ConsoleApplication3\" />
+    <Folder Include="ConsoleApplication3\x64\" />
+    <Folder Include="ConsoleApplication3\x64\Debug" />
+    <Folder Include="CudaRuntime10\" />
+    <Folder Include="CudaRuntime10\x64\" />
+    <Folder Include="CudaRuntime10\x64\Debug" />
+    <Folder Include="CudaRuntime11\" />
+    <Folder Include="CudaRuntime11\x64\" />
+    <Folder Include="CudaRuntime11\x64\Debug" />
+    <Folder Include="CudaRuntime12\" />
+    <Folder Include="CudaRuntime12\x64\" />
+    <Folder Include="CudaRuntime12\x64\Debug" />
+    <Folder Include="CudaRuntime4\" />
+    <Folder Include="CudaRuntime4\CudaRuntime4\" />
+    <Folder Include="CudaRuntime4\CudaRuntime4\x64\" />
+    <Folder Include="CudaRuntime4\CudaRuntime4\x64\Debug" />
+    <Folder Include="CudaRuntime5\" />
+    <Folder Include="CudaRuntime5\CudaRuntime5\" />
+    <Folder Include="CudaRuntime5\CudaRuntime5\x64\" />
+    <Folder Include="CudaRuntime5\CudaRuntime5\x64\Debug" />
+    <Folder Include="CudaRuntime6\" />
+    <Folder Include="CudaRuntime6\CudaRuntime6\" />
+    <Folder Include="CudaRuntime6\CudaRuntime6\x64\" />
+    <Folder Include="CudaRuntime6\CudaRuntime6\x64\Debug" />
+    <Folder Include="CudaRuntime7\" />
+    <Folder Include="CudaRuntime7\CudaRuntime7\" />
+    <Folder Include="CudaRuntime7\CudaRuntime7\x64\" />
+    <Folder Include="CudaRuntime7\CudaRuntime7\x64\Debug" />
+    <Folder Include="CudaRuntime8\" />
+    <Folder Include="CudaRuntime8\CudaRuntime8\" />
+    <Folder Include="CudaRuntime8\CudaRuntime8\x64\" />
+    <Folder Include="CudaRuntime8\CudaRuntime8\x64\Debug" />
+    <Folder Include="CudaRuntime9\" />
+    <Folder Include="CudaRuntime9\CudaRuntime9\" />
+    <Folder Include="CudaRuntime9\CudaRuntime9\x64\" />
+    <Folder Include="CudaRuntime9\CudaRuntime9\x64\Debug" />
+  </ItemGroup>
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
+</Project>
