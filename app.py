@@ -29,7 +29,9 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import datetime
-
+from collections import defaultdict
+import numpy as np
+import mysql.connector
 
 app = Flask(__name__)
 # app.run(debug=True)
@@ -196,8 +198,305 @@ def get_news():
 
 
 
+@app.route("/newsEmotionsSingleGraph", methods=["GET"])
+def newsEmotionsSingleGraph():
+    country = request.args.get("country", default="us")
+    end_date = datetime.date.today()
+    start_date = end_date - datetime.timedelta(days=15)
+    sentiment_scores = {}
+    titles = []
+    dates = []
+
+    # Fetch top headlines
+    for single_date in (start_date + datetime.timedelta(n) for n in range((end_date - start_date).days + 1)):
+        url = f"https://newsapi.org/v2/top-headlines?country={country}&apiKey={api_key}&from={single_date}&to={single_date}"
+        response = requests.get(url)
+
+        if response.status_code == 200:
+            articles = response.json()["articles"]
+
+            for article in articles:
+                # Perform sentiment analysis and append sentiment scores to the list
+                title = article["title"]
+                preprocessed_title = preprocess_text(title)
+                sentiment_score = sia.polarity_scores(preprocessed_title)
+
+                news_source = article["source"]["name"]
+                if news_source not in sentiment_scores:
+                    sentiment_scores[news_source] = {
+                        "compound": [],
+                        "neg": [],
+                        "neu": [],
+                        "pos": []
+                    }
+
+                for emotion in sentiment_score:
+                    sentiment_scores[news_source][emotion].append(sentiment_score.get(emotion, 0))
+
+                titles.append(title)
+                dates.append(single_date.strftime("%Y-%m-%d"))
+
+        else:
+            print(f"Error fetching news for {single_date}: {response.text}")
+
+    # Extract specific date field for x-axis values
+    extracted_dates = list(set(dates))
+
+    # Sort the dates in ascending order
+    extracted_dates.sort()
+
+    # Prepare data for the bar charts
+    emotions = ["compound", "neg", "neu", "pos"]  # Specify the emotions
+    num_emotions = len(emotions)  # Number of emotions
+    num_sources = len(sentiment_scores)  # Number of news sources
+
+    # Set the width and spacing for each bar
+    bar_width = 0.2
+    spacing = 0.05
+
+    # Set the index for each news source
+    index = range(num_sources)
+
+    # Set the colors for each emotion
+    colors = ['blue', 'green', 'orange', 'red']
+
+    # Generate multiple bar charts for each emotion
+    for emotion in emotions:
+        scores = []
+        for news_source in sentiment_scores:
+            scores.append(sentiment_scores[news_source][emotion][0])
+
+        # Create the bar chart
+        plt.bar(index, scores, bar_width, label=emotion, color=colors)
+
+    # Set the X-axis labels and tick positions
+    plt.xlabel("News Source")
+    plt.ylabel("Emotion Score")
+    plt.title("Emotion Scores by News Source")
+    plt.xticks(index, sentiment_scores.keys(), rotation=45)
+    plt.legend()
+    plt.tight_layout()
+
+    # Save the bar chart as an image
+    plt.savefig("C:\\Users\\danis\\OneDrive\\Desktop\\MS\\CST-590\\graphs\\newsEmotions.png")
+
+    # Show the bar chart
+    plt.show()
+
+    return sentiment_scores
 
 
+
+
+DB_HOST = '127.0.0.1'
+DB_USER = 'root'
+DB_PASSWORD = 'root'
+DB_DATABASE = 'capstone'
+
+# MySQL database configuration
+#db_config = {
+ #   'host': '127.0.0.1',
+  #  'user': 'root',
+   # 'password': 'root',
+    #'database': 'capstone'
+#}
+
+# Connect to MySQL database
+#db_conn = pymysql.connector.connect(**db_config)
+#cursor = db_conn.cursor()
+
+db_connection = mysql.connector.connect(
+    host=DB_HOST,
+    user=DB_USER,
+    password=DB_PASSWORD,
+    database=DB_DATABASE
+)
+
+cursor = db_connection.cursor()
+
+@app.route("/newsEmotionsSingleGraphDBSave", methods=["GET"])
+def newsEmotionsSingleGraphDBSave():
+    country = request.args.get("country", default="us")
+    end_date = datetime.date.today()
+    start_date = end_date - datetime.timedelta(days=15)
+    sentiment_scores = {}
+
+    # Fetch top headlines
+    for single_date in (start_date + datetime.timedelta(n) for n in range((end_date - start_date).days + 1)):
+        url = f"https://newsapi.org/v2/top-headlines?country={country}&apiKey={api_key}&from={single_date}&to={single_date}"
+        response = requests.get(url)
+
+        if response.status_code == 200:
+            articles = response.json()["articles"]
+
+            for article in articles:
+                # Perform sentiment analysis
+                title = article["title"]
+                content = article["content"]
+                preprocessed_title = preprocess_text(title)
+                sentiment_score = sia.polarity_scores(preprocessed_title)
+
+                news_source = article["source"]["name"]
+                if news_source not in sentiment_scores:
+                    sentiment_scores[news_source] = {
+                        "compound": [],
+                        "neg": [],
+                        "neu": [],
+                        "pos": []
+                    }
+
+                for emotion in sentiment_score:
+                    sentiment_scores[news_source][emotion].append(sentiment_score.get(emotion, 0))
+
+                # Store the information in the database
+                insert_query = """
+                    INSERT INTO news_emotions (source, title, content, date, compound, neg, neu, pos)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                """
+                values = (news_source, title, content, single_date, sentiment_score["compound"],
+                          sentiment_score["neg"], sentiment_score["neu"], sentiment_score["pos"])
+                cursor.execute(insert_query, values)
+                db_connection.commit()
+
+        else:
+            print(f"Error fetching news for {single_date}: {response.text}")
+
+    # Generate bar charts using stored data
+    # ...
+
+    return sentiment_scores
+
+
+
+@app.route("/getNewsEmotionsSingleGraphDB", methods=["GET"])
+def getNewsEmotionsSingleGraphDB():
+    # Prepare the SQL query
+    select_query = "SELECT * FROM news_emotions"
+    cursor.execute(select_query)
+
+    # Fetch the results
+    results = cursor.fetchall()
+
+    # Create a dictionary to store the news emotions
+    news_emotions = {}
+
+    # Process the results
+    for row in results:
+        source = row[1]
+        if source not in news_emotions:
+            news_emotions[source] = {
+                'compound': [],
+                'date': [],
+                'neg': [],
+                'neu': [],
+                'pos': []
+            }
+
+        news_emotions[source]['compound'].append(float(row[5]))
+        news_emotions[source]['date'].append(row[4].strftime("%Y-%m-%d"))
+        news_emotions[source]['neg'].append(float(row[6]))
+        news_emotions[source]['neu'].append(float(row[7]))
+        news_emotions[source]['pos'].append(float(row[8]))
+
+    # Return the news emotions as JSON
+    return json.dumps(news_emotions)
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+@app.route("/newsEmotions", methods=["GET"])
+def newsEmotions():
+    country = request.args.get("country", default="us")    
+    end_date = datetime.date.today()
+    start_date = end_date - datetime.timedelta(days=2)
+    sentiment_scores = {}
+    titles = []
+    dates = []
+
+    # Fetch top headlines
+    for single_date in (start_date + datetime.timedelta(n) for n in range((end_date - start_date).days + 1)):
+        url = f"https://newsapi.org/v2/top-headlines?country={country}&apiKey={api_key}&from={single_date}&to={single_date}"
+        response = requests.get(url)
+
+        if response.status_code == 200:
+            articles = response.json()["articles"]
+
+            for article in articles:
+                # Perform sentiment analysis and append sentiment scores to the list
+                title = article["title"]
+                preprocessed_title = preprocess_text(title)
+                sentiment_score = sia.polarity_scores(preprocessed_title)
+
+                news_source = article["source"]["name"]
+                if news_source not in sentiment_scores:
+                    sentiment_scores[news_source] = {
+                        "compound": [],
+                        "neg": [],
+                        "neu": [],
+                        "pos": []
+                    }
+
+                for emotion in sentiment_score:
+                    sentiment_scores[news_source][emotion].append(sentiment_score.get(emotion, 0))
+
+                titles.append(title)
+                dates.append(single_date.strftime("%Y-%m-%d"))
+
+        else:
+            print(f"Error fetching news for {single_date}: {response.text}")
+
+    # Extract specific date field for x-axis values
+    extracted_dates = list(set(dates))
+
+    # Sort the dates in ascending order
+    extracted_dates.sort()
+
+    # Prepare data for the bar charts
+    emotions = list(sentiment_scores[next(iter(sentiment_scores))].keys())  # Get the list of emotions
+    num_emotions = len(emotions)  # Number of emotions
+    num_sources = len(sentiment_scores)  # Number of news sources
+
+    # Set the width and spacing for each bar
+    bar_width = 0.2
+    spacing = 0.05
+
+    # Set the index for each news source
+    index = np.arange(num_sources)
+
+    # Set the colors for each emotion
+    colors = ['blue', 'green', 'orange', 'red', 'purple', 'cyan', 'magenta'][:num_emotions]
+
+    # Generate separate bar charts for each emotion
+    for i, emotion in enumerate(emotions):
+        scores = [sentiment_scores[news_source][emotion][0] for news_source in sentiment_scores]
+        plt.figure(figsize=(12, 6))  # Increase the figure size
+        plt.bar(index, scores, bar_width, label=emotion, color=colors[i])
+        plt.xlabel("News Source")
+        plt.ylabel("Emotion Score")
+        plt.title(f"{emotion.capitalize()} Scores by News Source")
+        plt.xticks(index, sentiment_scores.keys(), rotation=45)
+        plt.legend()
+        plt.tight_layout()
+
+        # Save the bar chart as an image
+        plt.savefig(f"C:\\Users\\danis\\OneDrive\\Desktop\\MS\\CST-590\\graphs\\{emotion}_newsEmotions.png")
+
+        # Show the bar chart
+        plt.show()
+
+    return sentiment_scores
 
 
 
