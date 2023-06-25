@@ -318,7 +318,7 @@ cursor = db_connection.cursor()
 def newsEmotionsSingleGraphDBSave():
     country = request.args.get("country", default="us")
     end_date = datetime.date.today()
-    start_date = end_date - datetime.timedelta(days=15)
+    start_date = end_date - datetime.timedelta(days=2)
     sentiment_scores = {}
 
     # Fetch top headlines
@@ -368,11 +368,37 @@ def newsEmotionsSingleGraphDBSave():
 
 
 
+##### this is bind  with NewsEmotionsSingleGraph on UI
+### getNewsEmotionsSingleGraphDB?start_date=2022-01-01&end_date=2022-12-31&news_source=The%20Tribune%20India
+
 @app.route("/getNewsEmotionsSingleGraphDB", methods=["GET"])
 def getNewsEmotionsSingleGraphDB():
+    # Retrieve request parameters
+    date = request.args.get("date")
+    news_source = request.args.get("news_source")
+    compound_value = request.args.get("compound_value")
+
     # Prepare the SQL query
     select_query = "SELECT * FROM news_emotions"
-    cursor.execute(select_query)
+    where_clause = ""
+    values = ()
+
+    if date or news_source or compound_value:
+        where_clause = " WHERE"
+        conditions = []
+        if date:
+            conditions.append(" date = %s")
+            values += (date,)
+        if news_source:
+            conditions.append(" source = %s")
+            values += (news_source,)
+        if compound_value:
+            conditions.append(" compound = %s")
+            values += (compound_value,)
+        where_clause += " AND".join(conditions)
+
+    full_query = select_query + where_clause
+    cursor.execute(full_query, values)
 
     # Fetch the results
     results = cursor.fetchall()
