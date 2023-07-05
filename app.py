@@ -14,6 +14,7 @@ import re
 import nltk
 nltk.download("punkt")
 nltk.download("stopwords")
+nltk.download("vader_lexicon")
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from nltk.stem import PorterStemmer
@@ -34,7 +35,7 @@ import numpy as np
 import mysql.connector
 
 app = Flask(__name__)
-# app.run(debug=True)
+#app.run(debug=True)
 CORS(app)
 
 
@@ -64,7 +65,7 @@ stemmer = PorterStemmer()
 # tokenizing the text, removing stop words, and performing stemming. The preprocessed text is then returned.
 
 def preprocess_text(text):
-   # Convert to lowercase
+    # Convert to lowercase
     text = text.lower()
 
     # Remove URLs
@@ -73,6 +74,9 @@ def preprocess_text(text):
     # Remove non-alphanumeric characters and extra whitespaces
     text = re.sub(r"[^\w\s]", "", text)
     text = re.sub(r"\s+", " ", text)
+
+    # Remove leading and trailing whitespace
+    text = text.strip()
 
     # Tokenize the text
     tokens = word_tokenize(text)
@@ -83,19 +87,10 @@ def preprocess_text(text):
     # Join tokens back into a preprocessed string
     preprocessed_text = " ".join(tokens)
 
-# I have added a preprocess_text() function that applies various preprocessing steps to the text data. 
-# The function converts the text to lowercase, removes URLs, non-alphanumeric characters, and extra whitespaces. 
-# It then tokenizes the text, removes stop words, and performs lemmatization using NLTK resources.
-#Within the /news endpoint, the article titles are preprocessed using the preprocess_text() 
-#function before being returned as the JSON response.
-
-#compound: The compound score represents the overall sentiment polarity of the text. It ranges from -1 (extremely negative) to 1 (extremely positive). In the output you shared, the compound score is -0.5267, indicating a negative sentiment.
-#neg: The negative score represents the negative sentiment intensity of the text. It also ranges from 0 to 1. In the output you shared, the negative score is 0.221, indicating a moderate amount of negative sentiment.
-#neu: The neutral score represents the neutral sentiment intensity of the text. It ranges from 0 to 1 as well. In the output you shared, the neutral score is 0.779, indicating a relatively high neutral sentiment.
-#pos: The positive score represents the positive sentiment intensity of the text. It ranges from 0 to 1. In the output you shared, the positive score is 0.0, indicating no positive sentiment.
-
     return preprocessed_text if preprocessed_text else " "
 
+
+## API to get the data from news api and create ML algortihm and show the result
 @app.route("/news", methods=["GET"])
 def get_news():
     country = request.args.get("country", default="us")
@@ -197,7 +192,7 @@ def get_news():
 
 
 
-
+## API to get the data from news api and show the results
 @app.route("/newsEmotionsSingleGraph", methods=["GET"])
 def newsEmotionsSingleGraph():
     country = request.args.get("country", default="us")
@@ -314,6 +309,7 @@ db_connection = mysql.connector.connect(
 
 cursor = db_connection.cursor()
 
+## API to get the data and save in the database
 @app.route("/newsEmotionsSingleGraphDBSave", methods=["GET"])
 def newsEmotionsSingleGraphDBSave():
     country = request.args.get("country", default="us")
@@ -441,7 +437,7 @@ def getNewsEmotionsSingleGraphDB():
 
 
 
-
+## Old API
 @app.route("/newsEmotions", methods=["GET"])
 def newsEmotions():
     country = request.args.get("country", default="us")    
@@ -531,7 +527,7 @@ def newsEmotions():
 
 
 
-
+## API to get the data from Tweeter
 @app.route("/tweets", methods=["GET"])
 def get_tweets():
     keyword = request.args.get("keyword")
@@ -545,6 +541,8 @@ def get_tweets():
 
     return jsonify(tweet_texts)
 
+
+#Old API
 @app.route('/newsService')
 def get_newsService():
     topic = request.args.get("topic")
@@ -571,6 +569,8 @@ def get_newsService():
         return jsonify(sentiment_scores)
     else:
         return jsonify({"error": response.text}), response.status_code
+
+
 
 
 #@app.route('/news')
@@ -622,6 +622,7 @@ def categorize_news(news_data):
     return categorized_news
 
 
+## API to get the data from BBC
 @app.route('/get_bbc_news_comments')
 def get_bbc_news_comments():
     # Fetch news articles from BBC RSS feed
@@ -660,6 +661,8 @@ def get_bbc_news_comments():
 
     return jsonify(news_with_comments)
 
+
+## API to get the data from washingtonpost
 @app.route('/get_washingtonpost_comments')
 def get_washingtonpost_comments():
     # Fetch news articles from The Washington Post RSS feed
@@ -716,6 +719,8 @@ def get_washingtonpost_comments():
 
     return jsonify(news_with_comments)
 
+
+## API to get the data from CNN
 @app.route('/cnn-instagram-posts')
 def get_cnn_instagram_posts():
     # Set up ChromeDriver options
