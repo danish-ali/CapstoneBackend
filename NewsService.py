@@ -6,7 +6,7 @@ from flask_cors import CORS
 
 app = Flask(__name__)
 CORS(app)
-API_KEY = 'e02243bc390540a3933687818730b8d0'  # Replace with your News API key
+API_KEY = ''  # Replace with your News API key
 
 @app.route('/news')
 def get_news():

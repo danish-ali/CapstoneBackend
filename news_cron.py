@@ -17,7 +17,7 @@ from nltk.stem import PorterStemmer
 from prometheus_client import start_http_server, Counter, Gauge
 
 # NewsChannel API key
-api_key = ''
+api_key = 'e02243bc390540a3933687818730b8d0'
 
 DB_HOST = '127.0.0.1'
 DB_USER = 'root'
