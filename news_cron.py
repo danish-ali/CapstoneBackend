@@ -14,7 +14,7 @@ from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from nltk.sentiment import SentimentIntensityAnalyzer
 from nltk.stem import PorterStemmer
-
+from prometheus_client import start_http_server, Counter, Gauge
 
 # NewsChannel API key
 api_key = 'e02243bc390540a3933687818730b8d0'
@@ -25,17 +25,6 @@ DB_PASSWORD = 'root'
 DB_DATABASE = 'capstone'
 
 # MySQL database configuration
-#db_config = {
- #   'host': '127.0.0.1',
-  #  'user': 'root',
-   # 'password': 'root',
-    #'database': 'capstone'
-#}
-
-# Connect to MySQL database
-#db_conn = pymysql.connector.connect(**db_config)
-#cursor = db_conn.cursor()
-
 db_connection = mysql.connector.connect(
     host=DB_HOST,
     user=DB_USER,
@@ -45,61 +34,32 @@ db_connection = mysql.connector.connect(
 
 cursor = db_connection.cursor()
 
-
+# Prometheus metrics
+total_articles_counter = Counter('news_articles_total', 'Total number of news articles processed')
+success_articles_counter = Counter('news_articles_success', 'Number of successfully processed news articles')
+error_articles_counter = Counter('news_articles_error', 'Number of news articles that encountered an error')
+processing_time_gauge = Gauge('news_processing_time_seconds', 'Time taken to process news articles')
 
 # Set up NLTK resources
 stop_words = set(stopwords.words("english"))
-# we import the SentimentIntensityAnalyzer class from nltk.sentiment.vader to perform sentiment analysis using VADER.
-#  The preprocess_text() function remains the same for data preprocessing.
 sia = SentimentIntensityAnalyzer()
 stemmer = PorterStemmer()
 
-# The preprocess_text function is defined to preprocess the input text. It performs several text cleaning operations such as 
-# converting the text to lowercase, removing URLs, eliminating non-alphanumeric characters, removing extra whitespaces, 
-# tokenizing the text, removing stop words, and performing stemming. The preprocessed text is then returned.
-
 def preprocess_text(text):
-   # Convert to lowercase
     text = text.lower()
-
-    # Remove URLs
     text = re.sub(r"http\S+|www\S+|https\S+", "", text)
-
-    # Remove non-alphanumeric characters and extra whitespaces
     text = re.sub(r"[^\w\s]", "", text)
     text = re.sub(r"\s+", " ", text)
-
-    # Tokenize the text
     tokens = word_tokenize(text)
-
-    # Remove stop words and perform stemming
     tokens = [token for token in tokens if token not in stop_words]
-
-    # Join tokens back into a preprocessed string
     preprocessed_text = " ".join(tokens)
-
-# I have added a preprocess_text() function that applies various preprocessing steps to the text data. 
-# The function converts the text to lowercase, removes URLs, non-alphanumeric characters, and extra whitespaces. 
-# It then tokenizes the text, removes stop words, and performs lemmatization using NLTK resources.
-#Within the /news endpoint, the article titles are preprocessed using the preprocess_text() 
-#function before being returned as the JSON response.
-
-#compound: The compound score represents the overall sentiment polarity of the text. It ranges from -1 (extremely negative) to 1 (extremely positive). In the output you shared, the compound score is -0.5267, indicating a negative sentiment.
-#neg: The negative score represents the negative sentiment intensity of the text. It also ranges from 0 to 1. In the output you shared, the negative score is 0.221, indicating a moderate amount of negative sentiment.
-#neu: The neutral score represents the neutral sentiment intensity of the text. It ranges from 0 to 1 as well. In the output you shared, the neutral score is 0.779, indicating a relatively high neutral sentiment.
-#pos: The positive score represents the positive sentiment intensity of the text. It ranges from 0 to 1. In the output you shared, the positive score is 0.0, indicating no positive sentiment.
-
     return preprocessed_text if preprocessed_text else " "
 
-
-
-def newsEmotionsSingleGraphDBSave(country="us"):
+def process_news_articles(country="us"):
     end_date = datetime.date.today()
-    start_date = end_date - datetime.timedelta(days=2)    
-    sentiment_scores = {}
-    print("batch job executed")
+    start_date = end_date - datetime.timedelta(days=2)
+    print("Batch job executed")
 
-    # Fetch top headlines
     for single_date in (start_date + datetime.timedelta(n) for n in range((end_date - start_date).days + 1)):
         url = f"https://newsapi.org/v2/top-headlines?country={country}&apiKey={api_key}&from={single_date}&to={single_date}"
         response = requests.get(url)
@@ -108,45 +68,50 @@ def newsEmotionsSingleGraphDBSave(country="us"):
             articles = response.json()["articles"]
 
             for article in articles:
-                # Perform sentiment analysis
-                title = article["title"]
-                content = article["content"]
-                preprocessed_title = preprocess_text(title)
-                sentiment_score = sia.polarity_scores(preprocessed_title)
+                total_articles_counter.inc()  # Increment the total articles counter
 
-                news_source = article["source"]["name"]
-                if news_source not in sentiment_scores:
-                    sentiment_scores[news_source] = {
-                        "compound": [],
-                        "neg": [],
-                        "neu": [],
-                        "pos": []
-                    }
+                try:
+                    processing_start_time = time.time()  # Start measuring the processing time
 
-                for emotion in sentiment_score:
-                    sentiment_scores[news_source][emotion].append(sentiment_score.get(emotion, 0))
+                    title = article["title"]
+                    content = article["content"]
+                    preprocessed_title = preprocess_text(title)
+                    sentiment_score = sia.polarity_scores(preprocessed_title)
 
-                # Store the information in the database
-                insert_query = """
-                    INSERT INTO news_emotions (source, title, content, date, compound, neg, neu, pos)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                """
-                values = (news_source, title, content, single_date, sentiment_score["compound"],
-                          sentiment_score["neg"], sentiment_score["neu"], sentiment_score["pos"])
-                cursor.execute(insert_query, values)
-                db_connection.commit()
+                    news_source = article["source"]["name"]
+
+                    # Store the information in the database
+                    insert_query = """
+                        INSERT INTO news_emotions (source, title, content, date, compound, neg, neu, pos)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    """
+                    values = (news_source, title, content, single_date, sentiment_score["compound"],
+                              sentiment_score["neg"], sentiment_score["neu"], sentiment_score["pos"])
+                    cursor.execute(insert_query, values)
+                    db_connection.commit()
+
+                    success_articles_counter.inc()  # Increment the success articles counter
+
+                    processing_time = time.time() - processing_start_time
+                    processing_time_gauge.set(processing_time)  # Set the processing time gauge
+
+                except Exception as e:
+                    error_articles_counter.inc()  # Increment the error articles counter
+                    print(f"Error processing news article: {e}")
 
         else:
             print(f"Error fetching news for {single_date}: {response.text}")
 
-    # Generate bar charts using stored data
-    # ...
+def run_scheduler():
+    # Start the Prometheus HTTP server on port 8000
+    start_http_server(8000)
 
-    return sentiment_scores
+    # Schedule the job to run every 60 minutes
+    schedule.every(1).minutes.do(process_news_articles)
 
-# Schedule the job to run every 60 minutes
-schedule.every(60).minutes.do(newsEmotionsSingleGraphDBSave)
+    while True:
+        schedule.run_pending()
+        time.sleep(1)
 
-while True:
-    schedule.run_pending()
-    time.sleep(1)
+if __name__ == '__main__':
+    run_scheduler()
