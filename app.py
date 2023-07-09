@@ -491,7 +491,7 @@ def getNewsContentBySentiment():
 
     # Process the results
     for row in results:
-        content = row['content']
+        content = row['title']
         if content not in unique_content:
             unique_content.add(content)
             news_content.append({

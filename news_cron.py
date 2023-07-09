@@ -60,7 +60,7 @@ def process_news_articles(country="us"):
     start_date = end_date - datetime.timedelta(days=10)
     print("Batch job executed")
 
-    for single_date in (start_date + datetime.timedelta(n) for n in range((end_date - start_date).days + 1)):
+    for single_date in (start_date + datetime.timedelta(n) for n in range((end_date - start_date).days + 7)):
         url = f"https://newsapi.org/v2/top-headlines?country={country}&apiKey={api_key}&from={single_date}&to={single_date}"
         response = requests.get(url)
 
@@ -107,7 +107,7 @@ def run_scheduler():
     start_http_server(8000)
 
     # Schedule the job to run every 60 minutes
-    schedule.every(2).minutes.do(process_news_articles)
+    schedule.every(1).minutes.do(process_news_articles)
 
     while True:
         schedule.run_pending()
