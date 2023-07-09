@@ -456,7 +456,7 @@ def getNewsEmotionsSingleGraphDB():
 @app.route("/getNewsContentBySentiment", methods=["GET"])
 def getNewsContentBySentiment():
     # Retrieve request parameters
-    newssource = request.args.get("newssource")
+    newssource = request.args.get("newsSource")
     sentiment = request.args.get("sentiment")
 
     # Check if newssource and sentiment are provided
@@ -466,7 +466,7 @@ def getNewsContentBySentiment():
     # Prepare the SQL query
     select_query = "SELECT content, title, date FROM news_emotions WHERE source = %s AND {} > 0"
     column = ""
-    
+
     if sentiment == "positive":
         column = "pos"
     elif sentiment == "negative":
@@ -484,22 +484,27 @@ def getNewsContentBySentiment():
 
     # Fetch the results
     results = cursor.fetchall()
-
+    # Create a set to store unique content
+    unique_content = set()
     # Create a list to store the news content and date
     news_content = []
 
     # Process the results
     for row in results:
-        news_content.append({
-            'content': row['title'],
-            'date': row['date'].strftime("%Y-%m-%d")
-        })
+        content = row['content']
+        if content not in unique_content:
+            unique_content.add(content)
+            news_content.append({
+                'content': content,
+                'date': row['date'].strftime("%Y-%m-%d")
+            })
 
     cursor.close()
     connection_pool.close()
 
     # Return the news content as JSON
     return jsonify(news_content)
+
 
 
  
