@@ -33,6 +33,10 @@ import datetime
 from collections import defaultdict
 import numpy as np
 import mysql.connector
+from flaskext.mysql import MySQL
+import pymysql
+from dbutils.pooled_db import PooledDB
+
 
 app = Flask(__name__)
 #app.run(debug=True)
@@ -289,25 +293,34 @@ DB_PASSWORD = 'root'
 DB_DATABASE = 'capstone'
 
 # MySQL database configuration
-#db_config = {
- #   'host': '127.0.0.1',
-  #  'user': 'root',
-   # 'password': 'root',
-    #'database': 'capstone'
-#}
 
-# Connect to MySQL database
-#db_conn = pymysql.connector.connect(**db_config)
-#cursor = db_conn.cursor()
 
-db_connection = mysql.connector.connect(
-    host=DB_HOST,
-    user=DB_USER,
-    password=DB_PASSWORD,
-    database=DB_DATABASE
+#db_connection = mysql.connector.connect(
+#    host=DB_HOST,
+#    user=DB_USER,
+#    password=DB_PASSWORD,
+#    database=DB_DATABASE
+#)
+
+#cursor = db_connection.cursor()
+
+
+
+# Create a connection pool
+connection_pool = PooledDB(
+    creator=pymysql,
+    host='127.0.0.1',
+    port=3306,
+    user='root',
+    password='root',
+    database='capstone',
+    autocommit=True,
+    charset='utf8mb4',
+    cursorclass=pymysql.cursors.DictCursor,
+    mincached=1,
+    maxcached=5,
+    maxconnections=20
 )
-
-cursor = db_connection.cursor()
 
 ## API to get the data and save in the database
 @app.route("/newsEmotionsSingleGraphDBSave", methods=["GET"])
@@ -391,20 +404,25 @@ def getNewsEmotionsSingleGraphDB():
         if compound_value:
             conditions.append(" compound = %s")
             values += (compound_value,)
-        where_clause += " AND".join(conditions)
-
+        where_clause += " AND".join(conditions)    
+    connection = connection_pool.connection()
+    cursor = connection.cursor(pymysql.cursors.DictCursor)
     full_query = select_query + where_clause
     cursor.execute(full_query, values)
 
     # Fetch the results
     results = cursor.fetchall()
 
+    # Print column names and indexes
+    for i, column_name in enumerate(cursor.description):
+        print(f"Column index: {i}, Name: {column_name[0]}")
+
     # Create a dictionary to store the news emotions
     news_emotions = {}
 
-    # Process the results
+    # Process the results    
     for row in results:
-        source = row[1]
+        source = row['source']
         if source not in news_emotions:
             news_emotions[source] = {
                 'compound': [],
@@ -414,17 +432,38 @@ def getNewsEmotionsSingleGraphDB():
                 'pos': []
             }
 
-        news_emotions[source]['compound'].append(float(row[5]))
-        news_emotions[source]['date'].append(row[4].strftime("%Y-%m-%d"))
-        news_emotions[source]['neg'].append(float(row[6]))
-        news_emotions[source]['neu'].append(float(row[7]))
-        news_emotions[source]['pos'].append(float(row[8]))
+        news_emotions[source]['compound'].append(float(row['compound']))
+        news_emotions[source]['date'].append(row['date'].strftime("%Y-%m-%d"))
+        news_emotions[source]['neg'].append(float(row['neg']))
+        news_emotions[source]['neu'].append(float(row['neu']))
+        news_emotions[source]['pos'].append(float(row['pos']))
 
+    cursor.close()
+    connection_pool.close()
     # Return the news emotions as JSON
     return json.dumps(news_emotions)
 
  
+@app.route("/getNewsChannels", methods=["GET"])
+def getNewsChannels():
+    # Prepare the SQL query
+    select_query = "SELECT DISTINCT source FROM news_emotions"
+    connection = connection_pool.connection()
+    cursor = connection.cursor(pymysql.cursors.DictCursor)
 
+    # Execute the query
+    cursor.execute(select_query)
+
+    # Fetch all the results
+    results = cursor.fetchall()
+
+    # Extract the news sources from the results
+    news_sources = [row['source'] for row in results]
+
+    cursor.close()
+    connection_pool.close()
+    # Return the news sources as JSON
+    return json.dumps(news_sources)
 
 
 

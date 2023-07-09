@@ -57,7 +57,7 @@ def preprocess_text(text):
 
 def process_news_articles(country="us"):
     end_date = datetime.date.today()
-    start_date = end_date - datetime.timedelta(days=2)
+    start_date = end_date - datetime.timedelta(days=10)
     print("Batch job executed")
 
     for single_date in (start_date + datetime.timedelta(n) for n in range((end_date - start_date).days + 1)):
