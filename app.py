@@ -322,7 +322,6 @@ connection_pool = PooledDB(
     maxconnections=20
 )
 
-## API to get the data and save in the database
 @app.route("/newsEmotionsSingleGraphDBSave", methods=["GET"])
 def newsEmotionsSingleGraphDBSave():
     country = request.args.get("country", default="us")
@@ -330,45 +329,50 @@ def newsEmotionsSingleGraphDBSave():
     start_date = end_date - datetime.timedelta(days=2)
     sentiment_scores = {}
 
-    # Fetch top headlines
+    news_sources = request.args.getlist("news_sources")  # Get the list of news sources
+
+    # Filter news sources based on the checked status
+    checked_news_sources = [source for source in news_sources if request.args.get(f"{source}.checked") == "true"]
+
+    # Fetch top headlines for checked news sources
     for single_date in (start_date + datetime.timedelta(n) for n in range((end_date - start_date).days + 1)):
-        url = f"https://newsapi.org/v2/top-headlines?country={country}&apiKey={api_key}&from={single_date}&to={single_date}"
-        response = requests.get(url)
+        for news_source in checked_news_sources:
+            url = f"https://newsapi.org/v2/top-headlines?sources={news_source}&apiKey={api_key}&from={single_date}&to={single_date}"
+            response = requests.get(url)
 
-        if response.status_code == 200:
-            articles = response.json()["articles"]
+            if response.status_code == 200:
+                articles = response.json()["articles"]
 
-            for article in articles:
-                # Perform sentiment analysis
-                title = article["title"]
-                content = article["content"]
-                preprocessed_title = preprocess_text(title)
-                sentiment_score = sia.polarity_scores(preprocessed_title)
+                for article in articles:
+                    # Perform sentiment analysis
+                    title = article["title"]
+                    content = article["content"]
+                    preprocessed_title = preprocess_text(title)
+                    sentiment_score = sia.polarity_scores(preprocessed_title)
 
-                news_source = article["source"]["name"]
-                if news_source not in sentiment_scores:
-                    sentiment_scores[news_source] = {
-                        "compound": [],
-                        "neg": [],
-                        "neu": [],
-                        "pos": []
-                    }
+                    if news_source not in sentiment_scores:
+                        sentiment_scores[news_source] = {
+                            "compound": [],
+                            "neg": [],
+                            "neu": [],
+                            "pos": []
+                        }
 
-                for emotion in sentiment_score:
-                    sentiment_scores[news_source][emotion].append(sentiment_score.get(emotion, 0))
+                    for emotion in sentiment_score:
+                        sentiment_scores[news_source][emotion].append(sentiment_score.get(emotion, 0))
 
-                # Store the information in the database
-                insert_query = """
-                    INSERT INTO news_emotions (source, title, content, date, compound, neg, neu, pos)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                """
-                values = (news_source, title, content, single_date, sentiment_score["compound"],
-                          sentiment_score["neg"], sentiment_score["neu"], sentiment_score["pos"])
-                cursor.execute(insert_query, values)
-                db_connection.commit()
+                    # Store the information in the database
+                    insert_query = """
+                        INSERT INTO news_emotions (source, title, content, date, compound, neg, neu, pos)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    """
+                    values = (news_source, title, content, single_date, sentiment_score["compound"],
+                              sentiment_score["neg"], sentiment_score["neu"], sentiment_score["pos"])
+                    cursor.execute(insert_query, values)
+                    db_connection.commit()
 
-        else:
-            print(f"Error fetching news for {single_date}: {response.text}")
+            else:
+                print(f"Error fetching news for {single_date} and news source {news_source}: {response.text}")
 
     # Generate bar charts using stored data
     # ...
@@ -384,38 +388,44 @@ def newsEmotionsSingleGraphDBSave():
 def getNewsEmotionsSingleGraphDB():
     # Retrieve request parameters
     date = request.args.get("date")
-    news_source = request.args.get("news_source")
-    compound_value = request.args.get("compound_value")
+    news_sources_param = request.args.get("newsSources")
+
+    # Check if news_sources_param is not None
+    if news_sources_param is not None:
+        # Parse the news_sources_param
+        news_sources = json.loads(news_sources_param)
+        
+        # Filter news sources based on the checked status
+        checked_news_sources = [source["name"] for source in news_sources if source.get("checked")]
+    else:
+        # If news_sources_param is None, return an empty response
+        return jsonify({})
 
     # Prepare the SQL query
     select_query = "SELECT * FROM news_emotions"
     where_clause = ""
     values = ()
 
-    if date or news_source or compound_value:
+    if date or checked_news_sources:
         where_clause = " WHERE"
         conditions = []
         if date:
             conditions.append(" date = %s")
             values += (date,)
-        if news_source:
-            conditions.append(" source = %s")
-            values += (news_source,)
-        if compound_value:
-            conditions.append(" compound = %s")
-            values += (compound_value,)
+        if checked_news_sources:
+            placeholders = ", ".join(["%s"] * len(checked_news_sources))
+            conditions.append(" source IN ({})".format(placeholders))
+            values += tuple(checked_news_sources)
         where_clause += " AND".join(conditions)    
+
+    # Execute the SQL query with the where clause
+    full_query = select_query + where_clause
+    
     connection = connection_pool.connection()
     cursor = connection.cursor(pymysql.cursors.DictCursor)
-    full_query = select_query + where_clause
     cursor.execute(full_query, values)
-
     # Fetch the results
     results = cursor.fetchall()
-
-    # Print column names and indexes
-    for i, column_name in enumerate(cursor.description):
-        print(f"Column index: {i}, Name: {column_name[0]}")
 
     # Create a dictionary to store the news emotions
     news_emotions = {}
@@ -437,11 +447,12 @@ def getNewsEmotionsSingleGraphDB():
         news_emotions[source]['neg'].append(float(row['neg']))
         news_emotions[source]['neu'].append(float(row['neu']))
         news_emotions[source]['pos'].append(float(row['pos']))
-
     cursor.close()
     connection_pool.close()
     # Return the news emotions as JSON
-    return json.dumps(news_emotions)
+    return jsonify(news_emotions)
+
+
 
  
 @app.route("/getNewsChannels", methods=["GET"])
