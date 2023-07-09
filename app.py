@@ -453,6 +453,54 @@ def getNewsEmotionsSingleGraphDB():
     return jsonify(news_emotions)
 
 
+@app.route("/getNewsContentBySentiment", methods=["GET"])
+def getNewsContentBySentiment():
+    # Retrieve request parameters
+    newssource = request.args.get("newssource")
+    sentiment = request.args.get("sentiment")
+
+    # Check if newssource and sentiment are provided
+    if newssource is None or sentiment is None:
+        return jsonify({})
+
+    # Prepare the SQL query
+    select_query = "SELECT content, title, date FROM news_emotions WHERE source = %s AND {} > 0"
+    column = ""
+    
+    if sentiment == "positive":
+        column = "pos"
+    elif sentiment == "negative":
+        column = "neg"
+    else:
+        return jsonify({})
+
+    full_query = select_query.format(column)
+    values = (newssource,)
+
+    # Execute the SQL query
+    connection = connection_pool.connection()
+    cursor = connection.cursor()
+    cursor.execute(full_query, values)
+
+    # Fetch the results
+    results = cursor.fetchall()
+
+    # Create a list to store the news content and date
+    news_content = []
+
+    # Process the results
+    for row in results:
+        news_content.append({
+            'content': row['title'],
+            'date': row['date'].strftime("%Y-%m-%d")
+        })
+
+    cursor.close()
+    connection_pool.close()
+
+    # Return the news content as JSON
+    return jsonify(news_content)
+
 
  
 @app.route("/getNewsChannels", methods=["GET"])
