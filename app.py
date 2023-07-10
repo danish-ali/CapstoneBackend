@@ -57,6 +57,7 @@ auth.set_access_token(access_token, access_token_secret)
 twitter_api = tweepy.API(auth)
 
 
+
 # Set up NLTK resources
 stop_words = set(stopwords.words("english"))
 # we import the SentimentIntensityAnalyzer class from nltk.sentiment.vader to perform sentiment analysis using VADER.
@@ -75,6 +76,13 @@ def preprocess_text(text):
     # Remove URLs
     text = re.sub(r"http\S+|www\S+|https\S+", "", text)
 
+    # Remove HTML tags: <table>, <tr>, <th>, <td>, <li>
+    text = re.sub(r"<table>|</table>|<tr>|</tr>|<th>|</th>|<td>|</td>|<li>|</li>", "", text)
+
+    # Remove common content
+    common_content = "we use cookies and data to deliver and maintain Google services track outages and protect against spam fraud and abuse measure audience engagement and site statistics to"
+    text = text.replace(common_content, "")
+
     # Remove non-alphanumeric characters and extra whitespaces
     text = re.sub(r"[^\w\s]", "", text)
     text = re.sub(r"\s+", " ", text)
@@ -86,7 +94,9 @@ def preprocess_text(text):
     tokens = word_tokenize(text)
 
     # Remove stop words and perform stemming
-    tokens = [token for token in tokens if token not in stop_words]
+    stop_words = set(stopwords.words("english"))
+    ps = PorterStemmer()
+    tokens = [ps.stem(token) for token in tokens if token not in stop_words]
 
     # Join tokens back into a preprocessed string
     preprocessed_text = " ".join(tokens)
@@ -877,6 +887,115 @@ def get_cnn_instagram_posts():
         # Close the web driver in case of any exception
         driver.quit()
         return jsonify({'error': str(e)})
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Get the top trending topics
+@app.route('/topTrendingTopics')
+def get_top_trending_topics():
+    try:
+        # Get the trending topics for the USA (WOEID: 23424977)
+        trending_topics = twitter_api.get_place_trends(id=23424977)
+
+        # Extract the top 10 trending topics
+        top_trends = [trend["name"] for trend in trending_topics[0]["trends"][:10]]
+
+        # Retrieve and format news articles with sentiment analysis for each trend
+        results = {}
+        for trend in top_trends:
+            articles = get_news_articles(trend)
+            articles_with_sentiment = get_sentiment_analysis(articles)
+            results[trend] = articles_with_sentiment
+
+        return jsonify(results)
+
+    except tweepy.TweepError as e:
+        print(f"Error retrieving trending topics: {str(e)}")
+        return jsonify({"error": "Error retrieving trending topics"})
+
+# Retrieve news articles for a given topic
+def get_news_articles(topic):
+    try:
+        # Make a request to the News API to get news articles related to the topic
+      #  api_key = "YOUR_NEWS_API_KEY"
+        url = f"https://newsapi.org/v2/everything?q={topic}&apiKey={api_key}"
+        response = requests.get(url)
+
+        if response.status_code == 200:
+            articles = response.json()["articles"]
+            if len(articles) == 0:
+                # If no articles are found, try other news channels
+                for channel in news_channels:
+                    articles = get_articles_from_channel(channel, topic)
+                    if len(articles) > 0:
+                        break
+            return articles
+
+        else:
+            print(f"Error retrieving news articles for topic: {topic}")
+            return []
+
+    except requests.exceptions.RequestException as e:
+        print(f"Error retrieving news articles: {str(e)}")
+        return []
+
+# Retrieve news articles from a specific news channel
+def get_articles_from_channel(channel, topic):
+    try:
+        # Make a request to the news channel API to get news articles related to the topic
+       # api_key = "YOUR_NEWS_CHANNEL_API_KEY"
+        url = f"https://api.example.com/{channel}/news?q={topic}&apiKey={api_key}"
+        response = requests.get(url)
+
+        if response.status_code == 200:
+            articles = response.json()["articles"]
+            return articles
+
+        else:
+            print(f"Error retrieving news articles from {channel} for topic: {topic}")
+            return []
+
+    except requests.exceptions.RequestException as e:
+        print(f"Error retrieving news articles from {channel}: {str(e)}")
+        return []
+
+# Perform sentiment analysis on the content of news articles using NLTK
+def get_sentiment_analysis(articles):
+    articles_with_sentiment = []
+    for article in articles:
+        title = article["title"]
+        title = preprocess_text(title)
+        # Calculate the sentiment score for the content
+        sentiment_score = sia.polarity_scores(title)
+
+        # Add the sentiment score to the article
+        article["sentiment"] = sentiment_score["compound"]
+
+        # Remove unnecessary fields from the article
+        article.pop("content", None)
+        article.pop("url", None)
+        article.pop("urlToImage", None)
+        article.pop("author", None)
+
+        articles_with_sentiment.append(article)
+
+    return articles_with_sentiment
+
+
+
+
 
 
 
