@@ -3,10 +3,14 @@ from flask import Flask, jsonify
 import requests
 from textblob import TextBlob
 from flask_cors import CORS
+import configparser
 
 app = Flask(__name__)
 CORS(app)
-API_KEY = 'e02243bc390540a3933687818730b8d0'  # Replace with your News API key
+
+config = configparser.ConfigParser()
+config.read('config.ini')
+API_KEY = config.get('API_KEYS', 'api_key')  # Replace with your News API key
 
 @app.route('/news')
 def get_news():

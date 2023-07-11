@@ -15,9 +15,14 @@ from nltk.tokenize import word_tokenize
 from nltk.sentiment import SentimentIntensityAnalyzer
 from nltk.stem import PorterStemmer
 from prometheus_client import start_http_server, Counter, Gauge
+import configparser
+
+# Read the API key from a property file
+config = configparser.ConfigParser()
+config.read('config.ini') 
 
 # NewsChannel API key
-api_key = 'e02243bc390540a3933687818730b8d0'
+api_key = config.get('API_KEYS', 'api_key')
 
 DB_HOST = '127.0.0.1'
 DB_USER = 'root'

@@ -1,18 +1,24 @@
 from flask import Flask, jsonify, request
 import tweepy
 import requests
+import configparser
+import logging
 
 app = Flask(__name__)
 CORS(app)
-# Twitter API credentials
 
-consumer_key = 'Dq1VKypKj2s8uBBdLJsp5UVZM'
-consumer_secret = 'I0eV5YO6GApFZNK1y5t46NutKw5VNI7UfgKJwFrJC9PUgleK0p'
-access_token = '1625128811405754375-M6ieUWwRQYVYcQyRlJHC63VEJsP3GA'
-access_token_secret = 'LfBwwtQSt77kC2IyOkiiYSUpsSSP83iksaZxjoCBRCeyI'
+
+# Read the API key from a property file
+config = configparser.ConfigParser()
+config.read('config.ini')  # Assuming the property file is named config.ini
+
+consumer_key = config.get('API_KEYS', 'consumer_key')
+consumer_secret = config.get('API_KEYS', 'consumer_secret')
+access_token = config.get('API_KEYS', 'access_token')
+access_token_secret = config.get('API_KEYS', 'access_token_secret')
 
 # NewsChannel API key
-api_key = 'e02243bc390540a3933687818730b8d0'
+api_key = config.get('API_KEYS', 'api_key')
 
 # Authenticate with Twitter
 auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
